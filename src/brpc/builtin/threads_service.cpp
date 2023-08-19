@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <unistd.h>
 
 #include "butil/time.h"
 #include "butil/logging.h"

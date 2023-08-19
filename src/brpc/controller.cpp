@@ -1477,7 +1477,7 @@ int Controller::GetSockOption(int level, int optname, void* optval, socklen_t* o
     }
 }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
 typedef sig_t SignalHandler;
 #else
 typedef sighandler_t SignalHandler;

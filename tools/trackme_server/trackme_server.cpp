@@ -18,6 +18,7 @@
 
 // A server to receive TrackMeRequest and send back TrackMeResponse.
 
+#include <unistd.h>
 #include <gflags/gflags.h>
 #include <memory>
 #include <butil/logging.h>

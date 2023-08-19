@@ -158,7 +158,7 @@ void TaskGroup::run_main_task() {
         }
         if (FLAGS_show_per_worker_usage_in_vars && !usage_bvar) {
             char name[32];
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
             snprintf(name, sizeof(name), "bthread_worker_usage_%" PRIu64,
                      pthread_numeric_id());
 #else

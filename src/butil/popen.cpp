@@ -21,12 +21,13 @@
 #include "butil/build_config.h"
 #include "butil/logging.h"
 
+#include <sys/wait.h>
+
 #if defined(OS_LINUX)
 // clone is a linux specific syscall
 #include <sched.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 
 extern "C" {
 int BAIDU_WEAK bthread_usleep(uint64_t microseconds);

@@ -66,6 +66,10 @@ __END_DECLS
 
 #include <sys/epoll.h>
 
+#elif defined(OS_FREEBSD)
+
+#include <sys/event.h>
+
 #else
 
 #error "The platform does not support epoll-like APIs"
@@ -82,7 +86,7 @@ inline uint64_t pthread_numeric_id() {
     }
     return -1;
 #else
-    return pthread_self();
+    return reinterpret_cast<uint64_t>(pthread_self());
 #endif
 }
 

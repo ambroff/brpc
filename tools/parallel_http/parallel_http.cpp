@@ -18,6 +18,7 @@
 
 // Access many http servers in parallel, much faster than curl (even called in batch)
 
+#include <unistd.h>
 #include <gflags/gflags.h>
 #include <deque>
 #include <bthread/bthread.h>

@@ -266,6 +266,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         "-Wl,-U,_MallocExtension_ReleaseFreeMemory"
         "-Wl,-U,_ProfilerStart"
         "-Wl,-U,_ProfilerStop")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    set(DYNAMIC_LIB ${DYNAMIC_LIB} execinfo)
 endif()
 
 # for *.so
@@ -404,6 +406,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         ${PROJECT_SOURCE_DIR}/src/butil/strings/sys_string_conversions_mac.mm
         ${PROJECT_SOURCE_DIR}/src/butil/time/time_mac.cc
         ${PROJECT_SOURCE_DIR}/src/butil/mac/scoped_mach_port.cc)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    set(BUTIL_SOURCES ${BUTIL_SOURCES}
+        ${PROJECT_SOURCE_DIR}/src/butil/strings/sys_string_conversions_posix.cc
+        ${PROJECT_SOURCE_DIR}/src/butil/threading/platform_thread_freebsd.cc
+        )
 endif()
 
 file(GLOB_RECURSE BVAR_SOURCES "${PROJECT_SOURCE_DIR}/src/bvar/*.cpp")

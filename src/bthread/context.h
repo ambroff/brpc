@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stddef.h>
 
-#if defined(__GNUC__) || defined(__APPLE__)
+#if defined(__GNUC__) || defined(__APPLE__) || defined(__FreeBSD__)
 
   #define BTHREAD_CONTEXT_COMPILER_gcc
 
@@ -40,6 +40,12 @@
 	    #define BTHREAD_CONTEXT_PLATFORM_linux_arm64
 	    #define BTHREAD_CONTEXT_CALL_CONVENTION
 	#endif
+
+  #elif defined(__FreeBSD__)
+        #ifdef __x86_64__
+            #define BTHREAD_CONTEXT_PLATFORM_freebsd_x86_64
+            #define BTHREAD_CONTEXT_CALL_CONVENTION
+        #endif
 
   #elif defined(__MINGW32__) || defined (__MINGW64__)
 	#if defined(__x86_64__)

@@ -44,6 +44,17 @@ ssize_t ReadCommandLine(char* buf, size_t len, bool with_args) {
         LOG(ERROR) << "Fail to read /proc/self/cmdline";
         return -1;
     }
+#elif defined(OS_FREEBSD)
+    butil::fd_guard fd(open("/proc/curproc/cmdline", O_RDONLY));
+    if (fd < 0) {
+        LOG(ERROR) << "Fail to open /proc/curproc/cmdline";
+        return -1;
+    }
+    ssize_t nr = read(fd, buf, len);
+    if (nr <= 0) {
+        LOG(ERROR) << "Fail to read /proc/curproc/cmdline";
+        return -1;
+    }
 #elif defined(OS_MACOSX)
     static pid_t pid = getpid();
     std::ostringstream oss;

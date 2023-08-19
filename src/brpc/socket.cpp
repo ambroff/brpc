@@ -50,7 +50,7 @@
 #include "brpc/details/health_check.h"
 #include "brpc/rdma/rdma_endpoint.h"
 #include "brpc/rdma/rdma_helper.h"
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
 #include <sys/event.h>
 #endif
 
@@ -629,6 +629,30 @@ void Socket::EnableKeepaliveIfNeeded(int fd) {
 #elif defined(OS_MACOSX)
     if (_keepalive_options->keepalive_idle_s > 0) {
         if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE,
+                       &_keepalive_options->keepalive_idle_s,
+                       sizeof(_keepalive_options->keepalive_idle_s)) != 0) {
+            PLOG(ERROR) << "Fail to set keepidle of fd=" << fd;
+        }
+    }
+
+    if (_keepalive_options->keepalive_interval_s > 0) {
+        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL,
+                       &_keepalive_options->keepalive_interval_s,
+                       sizeof(_keepalive_options->keepalive_interval_s)) != 0) {
+            PLOG(ERROR) << "Fail to set keepintvl of fd=" << fd;
+        }
+    }
+
+    if (_keepalive_options->keepalive_count > 0) {
+        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT,
+                       &_keepalive_options->keepalive_count,
+                       sizeof(_keepalive_options->keepalive_count)) != 0) {
+            PLOG(ERROR) << "Fail to set keepcnt of fd=" << fd;
+        }
+    }
+#elif defined(OS_FREEBSD)
+    if (_keepalive_options->keepalive_idle_s > 0) {
+        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE,
                        &_keepalive_options->keepalive_idle_s,
                        sizeof(_keepalive_options->keepalive_idle_s)) != 0) {
             PLOG(ERROR) << "Fail to set keepidle of fd=" << fd;
@@ -1963,8 +1987,9 @@ int Socket::SSLHandshake(int fd, bool server_mode) {
         case SSL_ERROR_WANT_READ:
 #if defined(OS_LINUX)
             if (bthread_fd_wait(fd, EPOLLIN) != 0) {
-#elif defined(OS_MACOSX)
-            if (bthread_fd_wait(fd, EVFILT_READ) != 0) {
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
+
+            if (bthread_fd_wait(fd, EVFILT_READ) != 0) { 
 #endif
                 return -1;
             }
@@ -1973,7 +1998,7 @@ int Socket::SSLHandshake(int fd, bool server_mode) {
         case SSL_ERROR_WANT_WRITE:
 #if defined(OS_LINUX)
             if (bthread_fd_wait(fd, EPOLLOUT) != 0) {
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
             if (bthread_fd_wait(fd, EVFILT_WRITE) != 0) {
 #endif
                 return -1;
@@ -2366,13 +2391,17 @@ void Socket::DebugSocket(std::ostream& os, SocketId id) {
         if (getsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &keepidle, &len) == 0) {
             os << "\ntcp_keepalive_time=" << keepidle;
         }
+#elif  defined(OS_FREEBSD)
+        if (getsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, &len) == 0) {
+            os << "\ntcp_keepalive_time=" << keepidle;
+        }
 #endif
     }
 
     {
         int keepintvl = 0;
         socklen_t len = sizeof(keepintvl);
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
         if (getsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, &len) == 0) {
             os << "\ntcp_keepalive_intvl=" << keepintvl;
         }
@@ -2386,7 +2415,7 @@ void Socket::DebugSocket(std::ostream& os, SocketId id) {
     {
         int keepcnt = 0;
         socklen_t len = sizeof(keepcnt);
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
         if (getsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, &len) == 0) {
             os << "\ntcp_keepalive_probes=" << keepcnt;
         }
@@ -2450,6 +2479,41 @@ void Socket::DebugSocket(std::ostream& os, SocketId id) {
            << "\n  snd_cwnd=" << ti.tcpi_snd_cwnd
            << "\n  advmss=" << ti.tcpi_advmss
            << "\n  reordering=" << ti.tcpi_reordering
+           << "\n}";
+    }
+#elif  defined(OS_FREEBSD)
+    struct tcp_info ti;
+    socklen_t len = sizeof(ti);
+    if (fd >= 0 && getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &len) == 0) {
+        os << "\ntcpi={\n  state=" << (uint32_t)ti.tcpi_state
+           << "\n  ca_state=" << (uint32_t)ti.__tcpi_ca_state
+           << "\n  retransmits=" << (uint32_t)ti.__tcpi_retransmits
+           << "\n  probes=" << (uint32_t)ti.__tcpi_probes
+           << "\n  backoff=" << (uint32_t)ti.__tcpi_backoff
+           << "\n  options=" << (uint32_t)ti.tcpi_options
+           << "\n  snd_wscale=" << (uint32_t)ti.tcpi_snd_wscale
+           << "\n  rcv_wscale=" << (uint32_t)ti.tcpi_rcv_wscale
+           << "\n  rto=" << ti.tcpi_rto
+           << "\n  ato=" << ti.__tcpi_ato
+           << "\n  snd_mss=" << ti.tcpi_snd_mss
+           << "\n  rcv_mss=" << ti.tcpi_rcv_mss
+           << "\n  unacked=" << ti.__tcpi_unacked
+           << "\n  sacked=" << ti.__tcpi_sacked
+           << "\n  lost=" << ti.__tcpi_lost
+           << "\n  retrans=" << ti.__tcpi_retrans
+           << "\n  fackets=" << ti.__tcpi_fackets
+           << "\n  last_data_sent=" << ti.__tcpi_last_data_sent
+           << "\n  last_ack_sent=" << ti.__tcpi_last_ack_sent
+           << "\n  last_data_recv=" << ti.tcpi_last_data_recv
+           << "\n  last_ack_recv=" << ti.__tcpi_last_ack_recv
+           << "\n  pmtu=" << ti.__tcpi_pmtu
+           << "\n  rcv_ssthresh=" << ti.__tcpi_rcv_ssthresh
+           << "\n  rtt=" << ti.tcpi_rtt  // smoothed
+           << "\n  rttvar=" << ti.tcpi_rttvar
+           << "\n  snd_ssthresh=" << ti.tcpi_snd_ssthresh
+           << "\n  snd_cwnd=" << ti.tcpi_snd_cwnd
+           << "\n  advmss=" << ti.__tcpi_advmss
+           << "\n  reordering=" << ti.__tcpi_reordering
            << "\n}";
     }
 #endif

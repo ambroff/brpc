@@ -174,7 +174,7 @@ public:
         epoll_event evt = { EPOLLOUT, { NULL } };
         if (epoll_ctl(saved_epfd, EPOLL_CTL_ADD,
                       closing_epoll_pipe[1], &evt) < 0) {
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
         struct kevent kqueue_event;
         EV_SET(&kqueue_event, closing_epoll_pipe[1], EVFILT_WRITE, EV_ADD | EV_ENABLE,
                 0, 0, NULL);
@@ -250,7 +250,7 @@ public:
             return -1;
         }
 # endif
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
         struct kevent kqueue_event;
         EV_SET(&kqueue_event, fd, events, EV_ADD | EV_ENABLE | EV_ONESHOT,
                 0, 0, butex);
@@ -290,7 +290,7 @@ public:
         }
 #if defined(OS_LINUX)
         epoll_ctl(_epfd, EPOLL_CTL_DEL, fd, NULL);
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
         struct kevent evt;
         EV_SET(&evt, fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
         kevent(_epfd, &evt, 1, NULL, 0, NULL);
@@ -316,7 +316,7 @@ private:
         const size_t MAX_EVENTS = 32;
 #if defined(OS_LINUX)
         epoll_event* e = new (std::nothrow) epoll_event[MAX_EVENTS];
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
         typedef struct kevent KEVENT;
         struct kevent* e = new (std::nothrow) KEVENT[MAX_EVENTS];
 #endif
@@ -334,7 +334,7 @@ private:
             const int epfd = _epfd;
 #if defined(OS_LINUX)
             const int n = epoll_wait(epfd, e, MAX_EVENTS, -1);
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
             const int n = kevent(epfd, NULL, 0, e, MAX_EVENTS, NULL);
 #endif
             if (_stop) {
@@ -374,7 +374,7 @@ private:
                 EpollButex* butex = pbutex ?
                     pbutex->load(butil::memory_order_consume) : NULL;
 # endif
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
                 EpollButex* butex = static_cast<EpollButex*>(e[i].udata);
 #endif
                 if (butex != NULL && butex != CLOSING_GUARD) {
@@ -433,7 +433,7 @@ short epoll_to_poll_events(uint32_t epoll_events) {
     CHECK_EQ((uint32_t)poll_events, epoll_events);
     return poll_events;
 }
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
 static short kqueue_to_poll_events(int kqueue_events) {
     //TODO: add more values?
     short poll_events = 0;
@@ -464,7 +464,7 @@ int pthread_fd_wait(int fd, unsigned events,
     }
 #if defined(OS_LINUX)
     const short poll_events = bthread::epoll_to_poll_events(events);
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
     const short poll_events = bthread::kqueue_to_poll_events(events);
 #endif
     if (poll_events == 0) {
@@ -535,7 +535,7 @@ int bthread_connect(int sockfd, const sockaddr* serv_addr,
     }
 #if defined(OS_LINUX)
     if (bthread_fd_wait(sockfd, EPOLLOUT) < 0) {
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
     if (bthread_fd_wait(sockfd, EVFILT_WRITE) < 0) {
 #endif
         return -1;
